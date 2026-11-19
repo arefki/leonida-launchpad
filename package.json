@@ -1,0 +1,19 @@
+{
+  "name": "leonida-launchpad",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Leonida Launchpad — a token launchpad on GIWA Sepolia built with the Ammora SDK (Ammora Season 2 Builder mission)",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node proxy.mjs & python3 -m http.server 8080 --directory docs",
+    "serve": "python3 -m http.server 8080 --directory docs"
+  },
+  "dependencies": {
+    "@ammora-protocol/sdk": "0.3.9",
+    "viem": "2.33.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leonida Launchpad — Token Launchpad on GIWA Sepolia (Ammora SDK)</title>
+<meta name="description" content="Discover, trade and launch bonding-curve tokens on GIWA Sepolia, built with the Ammora SDK (@ammora-protocol/sdk 0.3.9). Testnet only.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232dd4bf'/%3E%3Ctext x='32' y='44' font-family='sans-serif' font-size='36' font-weight='bold' text-anchor='middle' fill='%230b1220'%3EL%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">L</span>
+      <div>
+        <div class="brand-name">Leonida Launchpad</div>
+        <div class="brand-sub">GIWA Sepolia &middot; Ammora SDK 0.3.9 &middot; Testnet</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="net-status" class="pill pill-muted">Connecting to GIWA Sepolia&hellip;</span>
+      <button id="btn-connect" class="btn btn-primary">Connect wallet</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="wallet-banner" class="banner banner-warn hidden"></div>
+  <div id="global-error" class="banner banner-error hidden"></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="discover" role="tab">Discover</button>
+    <button class="tab" data-tab="trade" role="tab">Trade</button>
+    <button class="tab" data-tab="create" role="tab">Create</button>
+    <button class="tab" data-tab="configs" role="tab">Configs</button>
+    <button class="tab" data-tab="about" role="tab">About</button>
+  </nav>
+
+  <!-- DISCOVER -->
+  <section id="tab-discover" class="panel">
+    <div class="panel-head">
+      <h2>Live launches</h2>
+      <p class="muted">Bonding-curve tokens launched through the Ammora V4 factory, read live from
+      on-chain <code>LaunchCreated</code> events. Newest first.</p>
+    </div>
+    <div class="row">
+      <button id="btn-scan" class="btn">Scan recent launches</button>
+      <label class="field-inline">Scan window
+        <select id="scan-blocks">
+          <option value="50000">50,000 blocks</option>
+          <option value="100000" selected>100,000 blocks</option>
+          <option value="250000">250,000 blocks</option>
+        </select>
+      </label>
+      <span id="scan-status" class="muted"></span>
+    </div>
+    <div id="launch-list" class="cards"></div>
+    <div class="row center">
+      <button id="btn-more-launches" class="btn hidden">Load more</button>
+    </div>
+  </section>
+
+  <!-- TRADE -->
+  <section id="tab-trade" class="panel hidden">
+    <div class="panel-head">
+      <h2>Trade on a curve</h2>
+      <p class="muted">Read a live bonding curve, get an SDK quote, and swap with your own wallet.
+      Buys spend WETH; gas is native GIWA ETH. Nothing here signs for you.</p>
+    </div>
+    <div class="row">
+      <input id="trade-curve" class="input grow" placeholder="Curve address 0x&hellip;" spellcheck="false">
+      <button id="btn-load-curve" class="btn">Load curve</button>
+    </div>
+    <div id="trade-state" class="card hidden"></div>
+    <div id="trade-box" class="card hidden">
+      <div class="row">
+        <button id="btn-buy-tab" class="btn btn-buy active">Buy</button>
+        <button id="btn-sell-tab" class="btn btn-sell">Sell</button>
+        <span class="muted" id="trade-quote-asset"></span>
+      </div>
+      <div class="row">
+        <input id="trade-amount" class="input grow" type="number" min="0" step="any" placeholder="Amount in">
+        <label class="field-inline">Slippage (bps)
+          <input id="trade-slippage" class="input small" type="number" value="100" min="1" max="5000">
+        </label>
+        <button id="btn-quote" class="btn">Get quote</button>
+      </div>
+      <div id="trade-quote" class="muted"></div>
+      <div id="trade-plan" class="hidden">
+        <pre id="trade-plan-text" class="code"></pre>
+        <div class="row">
+          <button id="btn-approve" class="btn hidden">1. Approve spend</button>
+          <button id="btn-send-swap" class="btn btn-primary">2. Send swap</button>
+        </div>
+        <div id="trade-tx-status" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btn-migrate" class="btn hidden">Migrate to ARL pool</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CREATE -->
+  <section id="tab-create" class="panel hidden">
+    <div class="panel-head">
+      <h2>Create a launch</h2>
+      <p class="muted">Issue a new token + bonding curve from an existing Ammora Config. The Config
+      owner, fee split and graduation rules come from the Config you pick — this page never
+      invents them. Your wallet pays gas and the Config's pool creation fee.</p>
+    </div>
+    <div class="banner banner-warn">Config #6 is <strong>blocked</strong> for new launches
+    (Ammora graduation-readiness notice: it can sell all base inventory and fail migration).
+    It is disabled in the list below.</div>
+    <form id="create-form" class="form">
+      <label>Config
+        <select id="create-config" class="input"></select>
+        <span id="create-config-info" class="muted"></span>
+      </label>
+      <label>Token name
+        <input id="create-name" class="input" placeholder="e.g. Leonida Coin" maxlength="64" required>
+      </label>
+      <label>Symbol
+        <input id="create-symbol" class="input" placeholder="e.g. LEO" maxlength="16" required>
+      </label>
+      <label>Metadata URI
+        <input id="create-meta" class="input" placeholder="ipfs://&hellip; or https://&hellip;" spellcheck="false" required>
+      </label>
+      <label>Creator metadata URI (optional)
+        <input id="create-creator-meta" class="input" placeholder="ipfs://&hellip; or https://&hellip;" spellcheck="false">
+      </label>
+      <div class="row">
+        <button type="submit" id="btn-build-launch" class="btn btn-primary">Build unsigned launch tx</button>
+      </div>
+    </form>
+    <div id="create-plan" class="card hidden">
+      <pre id="create-plan-text" class="code"></pre>
+      <div class="row">
+        <button id="btn-send-launch" class="btn btn-primary">Send launch tx with wallet</button>
+      </div>
+      <div id="create-tx-status" class="muted"></div>
+    </div>
+    <div id="create-result" class="card hidden"></div>
+  </section>
+
+  <!-- CONFIGS -->
+  <section id="tab-configs" class="panel hidden">
+    <div class="panel-head">
+      <h2>Launch Configs</h2>
+      <p class="muted">Immutable launch configurations in the V4 registry, read live. Newest first.
+      A Config sets supply, curve, fees, graduation target and recipients for every token
+      launched from it.</p>
+    </div>
+    <div class="row">
+      <button id="btn-load-configs" class="btn">Load Configs</button>
+      <span id="configs-status" class="muted"></span>
+    </div>
+    <div id="config-list" class="cards"></div>
+    <div class="row center">
+      <button id="btn-more-configs" class="btn hidden">Load older Configs</button>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="tab-about" class="panel hidden">
+    <div class="panel-head">
+      <h2>About this launchpad</h2>
+    </div>
+    <p>Leonida Launchpad is a static frontend for the Ammora V4 launch system on GIWA
+    Sepolia. It imports the official Ammora SDK (<code>@ammora-protocol/sdk@0.3.9</code>)
+    and <code>viem</code>, reads the live deployment catalog, lists real launches from
+    on-chain events, quotes trades with the SDK curve client, and builds unsigned
+    create/swap transactions that only your connected wallet can sign.</p>
+    <p>There is no backend, no database, no API key and no mock data. If the RPC is
+    unreachable, the page says so instead of showing invented numbers.</p>
+    <h3>Live deployment (auto-route, GIWA Sepolia 91342)</h3>
+    <table class="table" id="deploy-table"></table>
+    <h3>Links</h3>
+    <ul>
+      <li><a href="https://docs.ammora.org" target="_blank" rel="noopener">Ammora docs</a></li>
+      <li><a href="https://www.npmjs.com/package/@ammora-protocol/sdk" target="_blank" rel="noopener">SDK on npm</a></li>
+      <li><a href="https://github.com/ammora-labs/ammora-protocol" target="_blank" rel="noopener">Ammora protocol on GitHub</a></li>
+      <li><a href="https://github.com/AmmoraLabs/ammora-examples/blob/main/LAUNCHPAD.md" target="_blank" rel="noopener">Launchpad guide (LAUNCHPAD.md)</a></li>
+      <li><a href="https://sepolia-explorer.giwa.io" target="_blank" rel="noopener">GIWA Sepolia explorer</a></li>
+      <li><a href="https://ammora.org/waitlist" target="_blank" rel="noopener">Ammora waitlist / Season 2</a></li>
+    </ul>
+    <h3>Warnings</h3>
+    <ul>
+      <li><strong>Testnet only.</strong> GIWA Sepolia assets have no real value. Never send
+      mainnet funds to any address shown here.</li>
+      <li>Ammora is <strong>beta testnet software with no independent security audit</strong>.
+      Review every transaction your wallet asks you to sign.</li>
+      <li>Config #6 is quarantined by Ammora for new launches (see the Create tab).</li>
+      <li>Launches listed here are user-created testnet tokens. Listing is not an
+      endorsement, a safety check, or investment advice.</li>
+    </ul>
+  </section>
+
+  <footer class="footer muted">
+    Leonida Launchpad &middot; built with @ammora-protocol/sdk 0.3.9 + viem on GIWA Sepolia (91342) &middot;
+    testnet only &middot; <a href="https://ammora.org/waitlist" target="_blank" rel="noopener">Ammora Season 2</a>
+  </footer>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
